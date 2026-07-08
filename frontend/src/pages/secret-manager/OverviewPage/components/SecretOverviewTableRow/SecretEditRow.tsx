@@ -36,6 +36,7 @@ type Props = {
   secretName: string;
   secretId?: string;
   isOverride?: boolean;
+  getIsOverrideByEnvironment?: (environment: string) => boolean | undefined;
   isCreatable?: boolean;
   isVisible?: boolean;
   isImportedSecret: boolean;
@@ -85,6 +86,7 @@ export const SecretEditRow = ({
   defaultValue,
   isCreatable,
   isOverride,
+  getIsOverrideByEnvironment,
   isImportedSecret,
   onSecretUpdate,
   secretName,
@@ -415,6 +417,7 @@ export const SecretEditRow = ({
               secretKey={secretName}
               defaultValue={(watchedValue as string | null | undefined) ?? defaultValue}
               isOverride={isOverride}
+              getIsOverrideByEnvironment={getIsOverrideByEnvironment}
               isReadOnly={isImportedSecret || (isManagedSecret && !isOverride)}
               secretValueHidden={secretValueHidden}
             />

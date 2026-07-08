@@ -78,6 +78,7 @@ type Props = {
   environmentName?: string;
   defaultValue?: string | null;
   isOverride?: boolean;
+  getIsOverrideByEnvironment?: (environment: string) => boolean | undefined;
   isReadOnly?: boolean;
   secretValueHidden?: boolean;
   onNavigateAway?: () => void;
@@ -104,13 +105,13 @@ const SecretReferenceBlockContent = ({
       className="group flex h-9 min-w-0 items-center justify-between gap-3 rounded-md border border-border bg-container px-3 text-left text-sm transition-colors hover:bg-container-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       onClick={() => onSelectReference(entry)}
     >
-      <span className="min-w-0 truncate font-mono text-foreground">
+      <span className="flex min-w-0 items-baseline gap-2 truncate font-mono text-foreground">
         {entry.key}
         {getReferencePathLabel(entry.secretPath) && (
-          <span className="ml-1 text-xs text-muted">{getReferencePathLabel(entry.secretPath)}</span>
+          <span className="text-xs text-muted">{getReferencePathLabel(entry.secretPath)}</span>
         )}
         {entry.isDraft && (
-          <Badge variant="warning" className="ml-1 font-sans">
+          <Badge variant="warning" className="font-sans">
             Draft
           </Badge>
         )}
@@ -241,6 +242,7 @@ export const SecretReferenceDetailsDialog = ({
   environmentName,
   defaultValue,
   isOverride,
+  getIsOverrideByEnvironment,
   isReadOnly,
   secretValueHidden,
   onNavigateAway
@@ -267,6 +269,9 @@ export const SecretReferenceDetailsDialog = ({
   const [pendingCloseAction, setPendingCloseAction] = useState<(() => void) | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const valueInputRef = useRef<HTMLTextAreaElement>(null);
+  const canSwitchEnvironment = Boolean(getIsOverrideByEnvironment);
+  const selectedEnvironmentIsOverride =
+    getIsOverrideByEnvironment?.(selectedEnvironment) ?? isOverride;
 
   const secretSubject = useMemo(
     () =>
@@ -303,7 +308,7 @@ export const SecretReferenceDetailsDialog = ({
       environment: selectedEnvironment,
       secretPath,
       secretKey,
-      isOverride
+      isOverride: selectedEnvironmentIsOverride
     },
     { enabled: Boolean(projectId && selectedEnvironment && secretKey && canFetchValue) }
   );
@@ -348,6 +353,7 @@ export const SecretReferenceDetailsDialog = ({
   const ingestedReferences = isValueDirty
     ? getDraftIngestedSecretReferences({
         value: formValue,
+        baselineValue,
         environment: selectedEnvironment,
         secretPath
       })
@@ -446,7 +452,7 @@ export const SecretReferenceDetailsDialog = ({
         environment: selectedEnvironment,
         secretPath,
         secretKey,
-        type: isOverride ? SecretType.Personal : SecretType.Shared,
+        type: selectedEnvironmentIsOverride ? SecretType.Personal : SecretType.Shared,
         newSecretName: formKey !== secretKey ? formKey : undefined,
         secretValue: isValueDirty ? formValue : undefined
       });
@@ -508,7 +514,7 @@ export const SecretReferenceDetailsDialog = ({
                     setSelectedEnvironment(value);
                     setIsEditingValue(false);
                   }}
-                  disabled={isSaving || isDirty}
+                  disabled={isSaving || isDirty || !canSwitchEnvironment}
                 >
                   <SelectTrigger id="secret-reference-environment" className="w-full">
                     <SelectValue placeholder="Select environment" />
@@ -525,7 +531,16 @@ export const SecretReferenceDetailsDialog = ({
             </div>
 
             <Field>
-              <FieldLabel htmlFor="secret-reference-value">Value</FieldLabel>
+              <div className="flex h-5 items-center gap-2">
+                <FieldLabel htmlFor="secret-reference-value">Value</FieldLabel>
+                <span className="inline-flex w-16 items-center">
+                  {isValueDirty && (
+                    <Badge variant="warning" className="inline-flex font-sans">
+                      Changed
+                    </Badge>
+                  )}
+                </span>
+              </div>
               <FieldContent>
                 {isEditingValue ? (
                   <InfisicalSecretInput
@@ -559,8 +574,11 @@ export const SecretReferenceDetailsDialog = ({
                   />
                 )}
                 <FieldDescription className="text-center">
-                  Type <span className="font-mono text-foreground">{"${"}</span> to insert a
-                  reference to an existing secret.
+                  Type{" "}
+                  <Badge variant="outline" className="align-middle font-mono text-base">
+                    {"${"}
+                  </Badge>{" "}
+                  to insert a reference to an existing secret.
                 </FieldDescription>
                 {isValueError && <FieldError>Could not load this secret value.</FieldError>}
                 {isReferenceTreeError && isValueVisible && (

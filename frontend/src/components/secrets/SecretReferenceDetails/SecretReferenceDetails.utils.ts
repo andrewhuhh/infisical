@@ -120,7 +120,45 @@ const getReferenceSecretPath = (segments: string[], fallbackPath: string) => {
   return `/${segments.join("/")}`;
 };
 
-export const getDraftIngestedSecretReferences = ({
+const getParsedReferenceEntry = ({
+  reference,
+  environment,
+  secretPath
+}: {
+  reference: string;
+  environment: string;
+  secretPath: string;
+}) => {
+  const segments = reference.split(".").filter(Boolean);
+  if (!segments.length) return null;
+
+  const isCrossProjectReference = segments[0].startsWith("@");
+  const key = segments[segments.length - 1];
+  let referenceEnvironment = environment;
+  let pathSegments: string[] = [];
+
+  if (isCrossProjectReference) {
+    referenceEnvironment = segments[1] || environment;
+    pathSegments = segments.slice(2, -1);
+  } else if (segments.length > 1) {
+    [referenceEnvironment] = segments;
+    pathSegments = segments.slice(1, -1);
+  }
+
+  const referencePath = getReferenceSecretPath(
+    pathSegments,
+    segments.length === 1 ? secretPath : "/"
+  );
+
+  return {
+    entryKey: `${referencePath}:${key}`,
+    environment: referenceEnvironment,
+    key,
+    secretPath: referencePath
+  };
+};
+
+const getParsedReferenceEnvironmentMap = ({
   value,
   environment,
   secretPath
@@ -128,45 +166,76 @@ export const getDraftIngestedSecretReferences = ({
   value: string;
   environment: string;
   secretPath: string;
-}): SecretReferenceListEntry[] => {
-  const entries = new Map<string, SecretReferenceListEntry>();
+}) => {
+  const referenceEnvironments = new Map<string, Set<string>>();
 
   parseSecretReferenceValue(value).forEach((part) => {
     if (part.type !== "reference") return;
 
-    const segments = part.value.split(".").filter(Boolean);
-    if (!segments.length) return;
+    const referenceEntry = getParsedReferenceEntry({
+      reference: part.value,
+      environment,
+      secretPath
+    });
+    if (!referenceEntry) return;
 
-    const isCrossProjectReference = segments[0].startsWith("@");
-    const secretKey = segments[segments.length - 1];
-    let referenceEnvironment = environment;
-    let pathSegments: string[] = [];
+    const environments = referenceEnvironments.get(referenceEntry.entryKey);
 
-    if (isCrossProjectReference) {
-      referenceEnvironment = segments[1] || environment;
-      pathSegments = segments.slice(2, -1);
-    } else if (segments.length > 1) {
-      [referenceEnvironment] = segments;
-      pathSegments = segments.slice(1, -1);
-    }
-
-    const referencePath = getReferenceSecretPath(
-      pathSegments,
-      segments.length === 1 ? secretPath : "/"
-    );
-    const entryKey = `${referencePath}:${secretKey}`;
-    const existing = entries.get(entryKey);
-
-    if (existing) {
-      existing.environments = [...new Set([...existing.environments, referenceEnvironment])];
+    if (environments) {
+      environments.add(referenceEntry.environment);
       return;
     }
 
-    entries.set(entryKey, {
-      key: secretKey,
-      secretPath: referencePath,
-      environments: [referenceEnvironment],
-      isDraft: true
+    referenceEnvironments.set(referenceEntry.entryKey, new Set([referenceEntry.environment]));
+  });
+
+  return referenceEnvironments;
+};
+
+export const getDraftIngestedSecretReferences = ({
+  value,
+  baselineValue,
+  environment,
+  secretPath
+}: {
+  value: string;
+  baselineValue: string;
+  environment: string;
+  secretPath: string;
+}): SecretReferenceListEntry[] => {
+  const entries = new Map<string, SecretReferenceListEntry>();
+  const baselineReferenceEnvironments = getParsedReferenceEnvironmentMap({
+    value: baselineValue,
+    environment,
+    secretPath
+  });
+
+  parseSecretReferenceValue(value).forEach((part) => {
+    if (part.type !== "reference") return;
+
+    const referenceEntry = getParsedReferenceEntry({
+      reference: part.value,
+      environment,
+      secretPath
+    });
+    if (!referenceEntry) return;
+
+    const existing = entries.get(referenceEntry.entryKey);
+    const isDraft = !baselineReferenceEnvironments
+      .get(referenceEntry.entryKey)
+      ?.has(referenceEntry.environment);
+
+    if (existing) {
+      existing.environments = [...new Set([...existing.environments, referenceEntry.environment])];
+      existing.isDraft = existing.isDraft || isDraft;
+      return;
+    }
+
+    entries.set(referenceEntry.entryKey, {
+      key: referenceEntry.key,
+      secretPath: referenceEntry.secretPath,
+      environments: [referenceEntry.environment],
+      ...(isDraft ? { isDraft } : {})
     });
   });
 

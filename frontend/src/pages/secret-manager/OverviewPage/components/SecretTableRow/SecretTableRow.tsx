@@ -249,6 +249,8 @@ export const SecretTableRow = ({
   const referenceImportedSecret = referenceEnvironment
     ? getImportedSecretByKey(referenceEnvironment.slug, secretKey)
     : undefined;
+  const getIsOverrideByEnvironment = (env: string) =>
+    Boolean(getSecretByKey(env, secretKey)?.idOverride);
 
   return (
     <>
@@ -344,6 +346,7 @@ export const SecretTableRow = ({
             defaultValue={getDefaultValue(singleEnvSecret, singleEnvImportedSecret)}
             secretId={singleEnvSecret?.id}
             isOverride={Boolean(singleEnvSecret?.idOverride)}
+            getIsOverrideByEnvironment={getIsOverrideByEnvironment}
             isImportedSecret={singleEnvIsImported}
             importedSecret={singleEnvImportedSecret}
             isCreatable={singleEnvIsCreatable}
@@ -490,6 +493,7 @@ export const SecretTableRow = ({
           secretKey={secretKey}
           defaultValue={getDefaultValue(referenceSecret, referenceImportedSecret)}
           isOverride={Boolean(referenceSecret?.idOverride)}
+          getIsOverrideByEnvironment={getIsOverrideByEnvironment}
           isReadOnly={
             isImportedSecretPresentInEnv(referenceEnvironment.slug, secretKey) ||
             Boolean(referenceSecret?.isRotatedSecret || referenceSecret?.isHoneyTokenSecret)
@@ -648,6 +652,7 @@ export const SecretTableRow = ({
                               defaultValue={getDefaultValue(secret, importedSecret)}
                               secretId={secret?.id}
                               isOverride={Boolean(secret?.idOverride)}
+                              getIsOverrideByEnvironment={getIsOverrideByEnvironment}
                               isImportedSecret={isImportedSecret}
                               importedSecret={importedSecret}
                               isCreatable={isCreatable}
