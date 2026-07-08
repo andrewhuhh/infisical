@@ -7,6 +7,12 @@ export type SecretReferenceListEntry = {
   isDraft?: boolean;
 };
 
+type SecretReferenceLookupKeyParts = {
+  environment: string;
+  secretPath: string;
+  key: string;
+};
+
 type SecretReferenceMetadata = {
   environment: { name: string; slug: string };
   folders: {
@@ -120,7 +126,13 @@ const getReferenceSecretPath = (segments: string[], fallbackPath: string) => {
   return `/${segments.join("/")}`;
 };
 
-const getParsedReferenceEntry = ({
+export const getSecretReferenceLookupKey = ({
+  environment,
+  secretPath,
+  key
+}: SecretReferenceLookupKeyParts) => `${environment}:${secretPath}:${key}`;
+
+export const getParsedReferenceEntry = ({
   reference,
   environment,
   secretPath

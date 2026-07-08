@@ -64,6 +64,8 @@ import {
   formatReferenceEnvironmentList,
   getDraftIngestedSecretReferences,
   getIngestedSecretReferences,
+  getParsedReferenceEntry,
+  getSecretReferenceLookupKey,
   getUsedBySecretReferences,
   parseSecretReferenceValue,
   SecretReferenceListEntry
@@ -105,7 +107,7 @@ const SecretReferenceBlockContent = ({
       className="group flex h-9 min-w-0 items-center justify-between gap-3 rounded-md border border-border bg-container px-3 text-left text-sm transition-colors hover:bg-container-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       onClick={() => onSelectReference(entry)}
     >
-      <span className="flex min-w-0 items-baseline gap-2 truncate font-mono text-foreground">
+      <span className="flex min-w-0 items-baseline gap-2 truncate font-medium text-foreground">
         {entry.key}
         {getReferencePathLabel(entry.secretPath) && (
           <span className="text-xs text-muted">{getReferencePathLabel(entry.secretPath)}</span>
@@ -116,7 +118,7 @@ const SecretReferenceBlockContent = ({
           </Badge>
         )}
       </span>
-      <span className="shrink-0 font-mono text-xs text-muted tabular-nums">
+      <span className="shrink-0 text-xs text-muted tabular-nums">
         {formatReferenceEnvironmentList(entry.environments)}
       </span>
     </button>
@@ -138,7 +140,7 @@ const SecretReferenceBlocks = ({
 
   return (
     <AccordionItem value={value}>
-      <AccordionTrigger className="text-xs font-medium tracking-normal text-accent uppercase">
+      <AccordionTrigger className="text-xs font-medium tracking-normal text-accent">
         <span className="flex min-w-0 flex-1 items-center gap-2">
           <span>{title}</span>
           <span className="flex h-5 min-w-5 items-center justify-center rounded border border-border bg-card px-1.5 text-xs text-foreground tabular-nums">
@@ -160,6 +162,8 @@ const SecretReferenceBlocks = ({
 const ParsedSecretValue = ({
   value,
   resolvedReferenceValues,
+  environment,
+  secretPath,
   isHidden,
   isLoading,
   canToggleVisibility,
@@ -168,6 +172,8 @@ const ParsedSecretValue = ({
 }: {
   value: string;
   resolvedReferenceValues: Map<string, string | undefined>;
+  environment: string;
+  secretPath: string;
   isHidden: boolean;
   isLoading?: boolean;
   canToggleVisibility: boolean;
@@ -177,15 +183,23 @@ const ParsedSecretValue = ({
   if (isLoading) return <Skeleton className="h-10 w-full" />;
 
   const parts = parseSecretReferenceValue(value || "");
+  const getResolvedReferenceValue = (reference: string) => {
+    const referenceEntry = getParsedReferenceEntry({ reference, environment, secretPath });
+
+    return referenceEntry
+      ? resolvedReferenceValues.get(getSecretReferenceLookupKey(referenceEntry))
+      : undefined;
+  };
 
   return (
+    // this should be a button-group, but current design system doesn't support it cleanly
     <div className="relative">
       <button
         type="button"
-        className="h-10 thin-scrollbar w-full overflow-y-auto rounded-md border border-border bg-container py-1.5 pr-11 pl-3 text-left text-sm transition-colors hover:bg-container-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="h-10 thin-scrollbar w-full overflow-y-auto rounded-md border border-border bg-container py-1.5 pr-11 pl-3 text-left font-mono text-sm transition-colors hover:bg-container-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         onClick={onEdit}
       >
-        <span className="font-mono break-all whitespace-pre-wrap">
+        <span className="break-all whitespace-pre-wrap">
           {isHidden ? (
             <span className="text-muted">{HIDDEN_SECRET_VALUE}</span>
           ) : (
@@ -197,15 +211,15 @@ const ParsedSecretValue = ({
                     <TooltipTrigger asChild>
                       <Badge
                         variant="project"
-                        className="mx-0.5 h-auto min-h-6 max-w-full font-mono break-all whitespace-normal"
+                        className="mx-0.5 h-auto min-h-6 max-w-full font-mono text-sm break-all whitespace-normal"
                       >
-                        {resolvedReferenceValues.get(
-                          part.value.split(".").filter(Boolean).at(-1) || ""
-                        ) ?? `\${${part.value}}`}
+                        {`\${${part.value}}`}
                       </Badge>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <span className="font-mono">{`\${${part.value}}`}</span>
+                      <span className="font-mono">
+                        {getResolvedReferenceValue(part.value) ?? `\${${part.value}}`}
+                      </span>
                     </TooltipContent>
                   </Tooltip>
                 ) : (
@@ -346,7 +360,9 @@ export const SecretReferenceDetailsDialog = ({
   const resolvedReferenceValues = useMemo(
     () =>
       new Map(
-        referenceTreeData?.tree.children.map((child) => [child.key, child.value] as const) ?? []
+        referenceTreeData?.tree.children.map(
+          (child) => [getSecretReferenceLookupKey(child), child.value] as const
+        ) ?? []
       ),
     [referenceTreeData?.tree.children]
   );
@@ -557,13 +573,15 @@ export const SecretReferenceDetailsDialog = ({
                     secretPath={secretPath}
                     environment={selectedEnvironment}
                     canEditButNotView={!canReadCurrentValue && canEditSecret}
-                    containerClassName="h-10 min-h-10 bg-container"
+                    containerClassName="h-10 min-h-10 bg-container font-mono"
                     onBlur={() => setIsEditingValue(false)}
                   />
                 ) : (
                   <ParsedSecretValue
                     value={formValue}
                     resolvedReferenceValues={resolvedReferenceValues}
+                    environment={selectedEnvironment}
+                    secretPath={secretPath}
                     isHidden={isValueHidden}
                     isLoading={isLoadingValue || (isValueVisible && isReferenceTreePending)}
                     canToggleVisibility={canReadCurrentValue}
