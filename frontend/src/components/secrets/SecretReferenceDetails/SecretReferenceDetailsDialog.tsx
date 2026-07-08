@@ -575,7 +575,7 @@ export const SecretReferenceDetailsDialog = ({
                 )}
                 <FieldDescription className="text-center">
                   Type{" "}
-                  <Badge variant="outline" className="align-middle font-mono text-base">
+                  <Badge variant="neutral" className="h-5 align-middle font-mono text-sm">
                     {"${"}
                   </Badge>{" "}
                   to insert a reference to an existing secret.
