@@ -952,7 +952,9 @@ export const SecretEditTableRow = ({
       importedBy?.some(
         ({ environment: importedByEnvironment, folders }) =>
           importedByEnvironment.slug === environment &&
-          folders?.some(({ secrets }) => secrets?.some(({ secretId }) => secretId === secretName))
+          folders?.some(({ secrets }) =>
+            secrets?.some(({ referencedSecretKey }) => referencedSecretKey === secretName)
+          )
       )
     );
   const secretIsReferencedByOtherSecrets = Boolean(
