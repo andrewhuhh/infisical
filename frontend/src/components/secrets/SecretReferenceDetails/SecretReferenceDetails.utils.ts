@@ -7,7 +7,69 @@ export type SecretReferenceListEntry = {
   isDraft?: boolean;
 };
 
-const SECRET_REFERENCE_REG = /\${([^}]+)}/g;
+type SecretReferenceMetadata = {
+  environment: { name: string; slug: string };
+  folders: {
+    name: string;
+    secrets?: { secretId: string; referencedSecretKey: string; referencedSecretEnv: string }[];
+    isImported: boolean;
+  }[];
+}[];
+
+const SECRET_REFERENCE_PATTERN = String.raw`\${([a-zA-Z0-9-_.@]+)}`;
+const SECRET_REFERENCE_REG = new RegExp(SECRET_REFERENCE_PATTERN, "g");
+const SECRET_REFERENCE_TEST_REG = new RegExp(SECRET_REFERENCE_PATTERN);
+
+export const hasSecretReference = (value: string | undefined) =>
+  value ? SECRET_REFERENCE_TEST_REG.test(value) : false;
+
+export const getSecretReferenceState = ({
+  secretKey,
+  secretPath,
+  value,
+  importedBy,
+  environment,
+  visibleEnvironmentSlugs
+}: {
+  secretKey: string;
+  secretPath: string;
+  value?: string;
+  importedBy?: SecretReferenceMetadata;
+  environment?: string;
+  visibleEnvironmentSlugs?: string[];
+}) => {
+  const visibleEnvironmentSet = new Set(
+    visibleEnvironmentSlugs || (environment ? [environment] : [])
+  );
+  const isEnvironmentVisible = (slug: string) =>
+    visibleEnvironmentSet.size === 0 || visibleEnvironmentSet.has(slug);
+
+  const isConsumer =
+    hasSecretReference(value) ||
+    Boolean(
+      importedBy?.some(({ environment: importedByEnvironment, folders }) =>
+        isEnvironmentVisible(importedByEnvironment.slug)
+          ? folders?.some(
+              ({ name, secrets }) =>
+                name === secretPath && secrets?.some(({ secretId }) => secretId === secretKey)
+            )
+          : false
+      )
+    );
+
+  const isProvider = Boolean(
+    importedBy?.some(({ folders }) =>
+      folders?.some(({ secrets }) =>
+        secrets?.some(
+          ({ referencedSecretKey, referencedSecretEnv }) =>
+            referencedSecretKey === secretKey && isEnvironmentVisible(referencedSecretEnv)
+        )
+      )
+    )
+  );
+
+  return { isConsumer, isProvider };
+};
 
 export const formatReferenceEnvironmentList = (environments: string[]) => {
   const uniqueEnvironments = [...new Set(environments.filter(Boolean))];

@@ -1,5 +1,6 @@
 export { ResolvedSecretValuePopover } from "./ResolvedSecretValuePopover";
 export { SecretReferenceCloseContext } from "./SecretReferenceContext";
-export { hasSecretReference, SecretReferenceTree } from "./SecretReferenceDetails";
+export { SecretReferenceTree } from "./SecretReferenceDetails";
 export { SecretReferenceDetailsDialog } from "./SecretReferenceDetailsDialog";
 export { SecretReferenceStateIcon } from "./SecretReferenceStateIcon";
+export { getSecretReferenceState, hasSecretReference } from "./SecretReferenceDetails.utils";

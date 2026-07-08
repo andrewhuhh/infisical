@@ -181,7 +181,7 @@ const ParsedSecretValue = ({
     <div className="relative">
       <button
         type="button"
-        className="min-h-10 w-full rounded-md border border-border bg-container py-2 pr-11 pl-3 text-left text-sm transition-colors hover:bg-container-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="h-10 thin-scrollbar w-full overflow-y-auto rounded-md border border-border bg-container py-1.5 pr-11 pl-3 text-left text-sm transition-colors hover:bg-container-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         onClick={onEdit}
       >
         <span className="font-mono break-all whitespace-pre-wrap">
@@ -291,8 +291,7 @@ export const SecretReferenceDetailsDialog = ({
   );
   const canEditSecret =
     !isReadOnly && permission.can(ProjectPermissionSecretActions.Edit, secretSubject);
-  const canFetchValue =
-    isOpen && canReadCurrentValue && !(secretValueHidden && selectedEnvironment === environment);
+  const canFetchValue = isOpen && canReadCurrentValue;
 
   const {
     data: secretValueData,
@@ -313,12 +312,15 @@ export const SecretReferenceDetailsDialog = ({
     data: referenceTreeData,
     isPending: isReferenceTreePending,
     isError: isReferenceTreeError
-  } = useGetSecretReferenceTree({
-    secretPath,
-    environmentSlug: selectedEnvironment,
-    projectId,
-    secretKey
-  });
+  } = useGetSecretReferenceTree(
+    {
+      secretPath,
+      environmentSlug: selectedEnvironment,
+      projectId,
+      secretKey
+    },
+    { enabled: isOpen && canReadCurrentValue }
+  );
 
   const { data: dependencyTreeData, isError: isDependencyTreeError } = useGetSecretReferences(
     {
@@ -327,11 +329,12 @@ export const SecretReferenceDetailsDialog = ({
       projectId,
       secretKey
     },
-    { enabled: Boolean(projectId && selectedEnvironment && secretKey) }
+    { enabled: isOpen }
   );
 
   const fetchedValue = secretValueData?.valueOverride ?? secretValueData?.value;
   const currentRawValue = fetchedValue ?? (secretValueHidden ? "" : (defaultValue ?? ""));
+  const isLoadingValue = canFetchValue && isValuePending;
   const isValueDirty = formValue !== baselineValue;
   const isDirty = formKey !== secretKey || isValueDirty;
   const isValueHidden = !isValueVisible || !canReadCurrentValue;
@@ -457,6 +460,7 @@ export const SecretReferenceDetailsDialog = ({
         createNotification({ type: "success", text: `Secret "${formKey}" updated` });
       }
 
+      setBaselineValue(formValue);
       onOpenChange(false);
     } catch (error) {
       console.error(error);
@@ -532,13 +536,13 @@ export const SecretReferenceDetailsDialog = ({
                       setFormValue(value);
                     }}
                     isVisible={isValueVisible && canReadCurrentValue}
-                    isReadOnly={!canEditSecret || isSaving || isValuePending || isValueError}
-                    isLoadingValue={isValuePending}
+                    isReadOnly={!canEditSecret || isSaving || isLoadingValue || isValueError}
+                    isLoadingValue={isLoadingValue}
                     isErrorLoadingValue={isValueError}
                     secretPath={secretPath}
                     environment={selectedEnvironment}
                     canEditButNotView={!canReadCurrentValue && canEditSecret}
-                    containerClassName="bg-container"
+                    containerClassName="h-10 min-h-10 bg-container"
                     onBlur={() => setIsEditingValue(false)}
                   />
                 ) : (
@@ -546,7 +550,7 @@ export const SecretReferenceDetailsDialog = ({
                     value={formValue}
                     resolvedReferenceValues={resolvedReferenceValues}
                     isHidden={isValueHidden}
-                    isLoading={isValuePending || (isValueVisible && isReferenceTreePending)}
+                    isLoading={isLoadingValue || (isValueVisible && isReferenceTreePending)}
                     canToggleVisibility={canReadCurrentValue}
                     onToggleVisibility={() => setIsValueVisible((isVisible) => !isVisible)}
                     onEdit={() => {

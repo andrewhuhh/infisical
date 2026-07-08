@@ -19,7 +19,7 @@ import { twMerge } from "tailwind-merge";
 
 import { createNotification } from "@app/components/notifications";
 import {
-  hasSecretReference,
+  getSecretReferenceState,
   SecretReferenceDetailsDialog,
   SecretReferenceStateIcon
 } from "@app/components/secrets/SecretReferenceDetails";
@@ -225,37 +225,23 @@ export const SecretTableRow = ({
   };
 
   const visibleEnvironmentSlugs = environments.map(({ slug }) => slug);
-  const secretHasReferenceInVisibleEnvironments =
-    Boolean(
-      importedBy?.some(({ environment: importedByEnvironment, folders }) =>
-        visibleEnvironmentSlugs.includes(importedByEnvironment.slug)
-          ? folders?.some(({ secrets }) =>
-              secrets?.some(({ secretId }) => secretId === secretKey)
-            )
-          : false
-      )
-    ) ||
-    environments.some(({ slug }) => {
-      const secret = getSecretByKey(slug, secretKey);
-      const importedSecret = getImportedSecretByKey(slug, secretKey);
+  const secretReferenceState = getSecretReferenceState({
+    secretKey,
+    secretPath,
+    importedBy,
+    visibleEnvironmentSlugs,
+    value: environments
+      .map(({ slug }) => {
+        const secret = getSecretByKey(slug, secretKey);
+        const importedSecret = getImportedSecretByKey(slug, secretKey);
 
-      return hasSecretReference(getDefaultValue(secret, importedSecret));
-    });
-  const secretIsReferencedInVisibleEnvironments = Boolean(
-    importedBy?.some(({ folders }) =>
-      folders?.some(({ secrets }) =>
-        secrets?.some(
-          ({ referencedSecretKey, referencedSecretEnv }) =>
-            referencedSecretKey === secretKey &&
-            visibleEnvironmentSlugs.includes(referencedSecretEnv)
-        )
-      )
-    )
-  );
+        return getDefaultValue(secret, importedSecret);
+      })
+      .join("\n")
+  });
   const referenceEnvironment =
     environments.find(
-      ({ slug }) =>
-        getSecretByKey(slug, secretKey) || isImportedSecretPresentInEnv(slug, secretKey)
+      ({ slug }) => getSecretByKey(slug, secretKey) || isImportedSecretPresentInEnv(slug, secretKey)
     ) || environments[0];
   const referenceSecret = referenceEnvironment
     ? getSecretByKey(referenceEnvironment.slug, secretKey)
@@ -398,8 +384,8 @@ export const SecretTableRow = ({
               </span>
               {!isEditSecretNameOpen && (
                 <SecretReferenceStateIcon
-                  isConsumer={secretHasReferenceInVisibleEnvironments}
-                  isProvider={secretIsReferencedInVisibleEnvironments}
+                  isConsumer={secretReferenceState.isConsumer}
+                  isProvider={secretReferenceState.isProvider}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

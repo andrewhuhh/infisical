@@ -31,7 +31,7 @@ import { UpgradePlanModal } from "@app/components/license/UpgradePlanModal";
 import { createNotification } from "@app/components/notifications";
 import { ProjectPermissionCan } from "@app/components/permissions";
 import {
-  hasSecretReference,
+  getSecretReferenceState,
   ResolvedSecretValuePopover,
   SecretReferenceDetailsDialog,
   SecretReferenceStateIcon
@@ -946,27 +946,13 @@ export const SecretEditTableRow = ({
   const isDirtyState =
     isDirty && (dirtyFields.key || dirtyFields.value) && !isImportedSecret && !isBatchMode;
 
-  const secretHasReference =
-    hasSecretReference(watchedValue as string) ||
-    Boolean(
-      importedBy?.some(
-        ({ environment: importedByEnvironment, folders }) =>
-          importedByEnvironment.slug === environment &&
-          folders?.some(({ secrets }) =>
-            secrets?.some(({ referencedSecretKey }) => referencedSecretKey === secretName)
-          )
-      )
-    );
-  const secretIsReferencedByOtherSecrets = Boolean(
-    importedBy?.some(({ folders }) =>
-      folders?.some(({ secrets }) =>
-        secrets?.some(
-          ({ referencedSecretKey, referencedSecretEnv }) =>
-            referencedSecretKey === secretName && referencedSecretEnv === environment
-        )
-      )
-    )
-  );
+  const secretReferenceState = getSecretReferenceState({
+    secretKey: secretName,
+    secretPath,
+    value: watchedValue as string,
+    importedBy,
+    environment
+  });
   const isNameEditingActive = isNameFieldFocused || Boolean(dirtyFields.key);
 
   const valueContent = (
@@ -1038,16 +1024,19 @@ export const SecretEditTableRow = ({
             isFieldActive && isBatchMode && "pr-6"
           )}
         >
-          {isFieldActive && !secretValueHidden && !isCreatable && secretHasReference && (
-            <ResolvedSecretValuePopover
-              environment={environment}
-              secretPath={secretPath}
-              secretKey={secretName}
-              open={isResolvedValueOpen}
-              onOpenChange={setIsResolvedValueOpen.toggle}
-              isDisabled={isDirtyState || hasPendingValueChange}
-            />
-          )}
+          {isFieldActive &&
+            !secretValueHidden &&
+            !isCreatable &&
+            secretReferenceState.isConsumer && (
+              <ResolvedSecretValuePopover
+                environment={environment}
+                secretPath={secretPath}
+                secretKey={secretName}
+                open={isResolvedValueOpen}
+                onOpenChange={setIsResolvedValueOpen.toggle}
+                isDisabled={isDirtyState || hasPendingValueChange}
+              />
+            )}
           <Controller
             control={control}
             name="value"
@@ -1072,7 +1061,7 @@ export const SecretEditTableRow = ({
                 defaultValue={secretValueHidden ? "" : undefined}
                 canEditButNotView={secretValueHidden && !isManagedSecret}
                 onFocus={() => setIsFieldFocused.on()}
-                containerClassName={secretHasReference && isFieldActive ? "pl-6" : ""}
+                containerClassName={secretReferenceState.isConsumer && isFieldActive ? "pl-6" : ""}
                 onBlur={() => {
                   field.onBlur();
                   setIsFieldFocused.off();
@@ -2038,8 +2027,8 @@ export const SecretEditTableRow = ({
             <div className="min-w-0 flex-1">{nameInput}</div>
             {!isNameEditingActive && (
               <SecretReferenceStateIcon
-                isConsumer={secretHasReference}
-                isProvider={secretIsReferencedByOtherSecrets}
+                isConsumer={secretReferenceState.isConsumer}
+                isProvider={secretReferenceState.isProvider}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
