@@ -58,7 +58,19 @@ Both `backend/` and `frontend/` enforce a minimum release age of 7 days for npm 
 
 ### Design System & Voice
 
-The v3 visual system (colors, typography, components, layout) and product voice/content tone are documented in [`DESIGN.md`](DESIGN.md). Read it before producing new UI or user-visible copy.
+Read the frontend design guidance in this order:
+
+1. [`DESIGN.md`](DESIGN.md) — permanent product-design principles, security UX,
+   accessibility, and content voice.
+2. [`frontend/DESIGN_ENGINEERING.md`](frontend/DESIGN_ENGINEERING.md) —
+   permanent frontend implementation contract and component-evolution process.
+3. Component Storybook stories and source — supported APIs and canonical
+   compositions.
+4. [`frontend/COMPONENT_SYSTEM_MIGRATION.md`](frontend/COMPONENT_SYSTEM_MIGRATION.md)
+   — temporary rules for legacy migration and remediation.
+
+Use the `designing-frontend-ui` skill for implementation planning and the
+`testing-frontend-ui` skill for acceptance validation.
 
 ### Auth & Permissions
 
