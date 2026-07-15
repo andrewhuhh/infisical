@@ -1,4 +1,6 @@
-import { faServer } from "@fortawesome/free-solid-svg-icons";
+import { useMemo, useRef } from "react";
+import { faRotateRight, faServer, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { createNotification } from "@app/components/notifications";
 import {
@@ -20,6 +22,8 @@ import { usePopUp } from "@app/hooks/usePopUp";
 import { timeAgo } from "@app/lib/fn/date";
 import { formatSessionUserAgent } from "@app/lib/fn/string";
 
+import { filterSessions } from "./filterSessions";
+
 const formatLocalDateTime = (date: Date): string => {
   return date.toLocaleString(undefined, {
     weekday: "long",
@@ -32,21 +36,43 @@ const formatLocalDateTime = (date: Date): string => {
   });
 };
 
-export const SessionsTable = () => {
-  const { data, isPending } = useGetMySessions();
-  const { mutateAsync: revokeMySessionById } = useRevokeMySessionById();
+type Props = {
+  search: string;
+};
+
+export const SessionsTable = ({ search }: Props) => {
+  const isRevokingSessionRef = useRef(false);
+  const { data, isPending, isError, refetch, isFetching } = useGetMySessions();
+  const { mutateAsync: revokeMySessionById, isPending: isRevokingSession } =
+    useRevokeMySessionById();
   const { popUp, handlePopUpOpen, handlePopUpClose, handlePopUpToggle } = usePopUp([
     "deleteSession"
   ] as const);
 
-  const handleSignOut = async (sessionId: string) => {
-    await revokeMySessionById(sessionId);
-    createNotification({
-      text: "Session revoked successfully",
-      type: "success"
-    });
+  const filteredSessions = useMemo(() => {
+    return filterSessions(data ?? [], search);
+  }, [data, search]);
 
-    handlePopUpClose("deleteSession");
+  const handleSignOut = async (sessionId: string) => {
+    if (isRevokingSessionRef.current) return;
+
+    isRevokingSessionRef.current = true;
+    try {
+      await revokeMySessionById(sessionId);
+      createNotification({
+        text: "Session revoked successfully",
+        type: "success"
+      });
+
+      handlePopUpClose("deleteSession");
+    } catch {
+      createNotification({
+        text: "Failed to revoke session. Try again.",
+        type: "error"
+      });
+    } finally {
+      isRevokingSessionRef.current = false;
+    }
   };
 
   return (
@@ -56,12 +82,13 @@ export const SessionsTable = () => {
         title="Are you sure you want to sign out of this session?"
         onChange={(isOpen) => handlePopUpToggle("deleteSession", isOpen)}
         deleteKey="confirm"
+        isDisabled={isRevokingSession}
         onDeleteApproved={() =>
           handleSignOut((popUp?.deleteSession?.data as { sessionId: string })?.sessionId)
         }
       />
-      <TableContainer className="mt-4">
-        <Table>
+      <TableContainer className="mt-4" aria-busy={isPending || isFetching}>
+        <Table className="min-w-3xl">
           <THead>
             <Tr>
               <Th>IP & Session ID</Th>
@@ -72,10 +99,39 @@ export const SessionsTable = () => {
           </THead>
           <TBody>
             {isPending && <TableSkeleton columns={4} innerKey="sessions" />}
+            {!isPending && isError && (
+              <Tr>
+                <Td colSpan={4}>
+                  <div
+                    className="flex flex-col items-center gap-3 px-4 py-8 text-center"
+                    role="alert"
+                  >
+                    <FontAwesomeIcon
+                      icon={faTriangleExclamation}
+                      className="text-2xl text-danger"
+                    />
+                    <div>
+                      <p className="font-medium text-mineshaft-100">Couldn&apos;t load sessions</p>
+                      <p className="mt-1 text-sm text-bunker-300">
+                        Check your connection and try again.
+                      </p>
+                    </div>
+                    <Button
+                      colorSchema="secondary"
+                      leftIcon={<FontAwesomeIcon icon={faRotateRight} />}
+                      isDisabled={isFetching}
+                      isLoading={isFetching}
+                      onClick={() => refetch()}
+                    >
+                      Try again
+                    </Button>
+                  </div>
+                </Td>
+              </Tr>
+            )}
             {!isPending &&
-              data &&
-              data.length > 0 &&
-              data.map(({ id, createdAt, lastUsed, ip, userAgent }) => {
+              !isError &&
+              filteredSessions.map(({ id, createdAt, lastUsed, ip, userAgent }) => {
                 const { os, browser } = formatSessionUserAgent(userAgent);
                 const lastUsedDate = new Date(lastUsed);
                 const createdAtDate = new Date(createdAt);
@@ -110,6 +166,7 @@ export const SessionsTable = () => {
                       <Button
                         variant="plain"
                         colorSchema="danger"
+                        isDisabled={isRevokingSession}
                         onClick={() => handlePopUpOpen("deleteSession", { sessionId: id })}
                       >
                         Sign out
@@ -118,10 +175,21 @@ export const SessionsTable = () => {
                   </Tr>
                 );
               })}
-            {!isPending && data && data?.length === 0 && (
+            {!isPending && !isError && data?.length === 0 && (
               <Tr>
                 <Td colSpan={4}>
                   <EmptyState title="No sessions on file" icon={faServer} />
+                </Td>
+              </Tr>
+            )}
+            {!isPending && !isError && Boolean(data?.length) && filteredSessions.length === 0 && (
+              <Tr>
+                <Td colSpan={4}>
+                  <EmptyState title="No sessions match this filter" icon={faServer}>
+                    <p className="mt-1 text-sm text-bunker-400">
+                      Clear the filter or try a different search term.
+                    </p>
+                  </EmptyState>
                 </Td>
               </Tr>
             )}
