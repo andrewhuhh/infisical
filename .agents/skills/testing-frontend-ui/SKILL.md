@@ -63,13 +63,20 @@ In the application exercise:
 
 - Successful action
 - Recoverable and unrecoverable failure
-- Duplicate-submission prevention
+- Duplicate-submission prevention through pointer and keyboard submission
 - Initial loading and background refresh where visible
-- Empty collection and no-results state
+- Empty collection and no-results as separate states, including table chrome and
+  an obvious recovery action
 - Read-only and permission-denied variants
-- Browser back/forward and refresh for URL-backed state
+- Browser back/forward, refresh, and unrelated search-parameter preservation for
+  URL-backed state
 - Overlay open, nested interaction, close, and focus return
 - Toast or inline feedback
+
+For every changed confirmation, Dialog, or Sheet, inspect the rendered title,
+description, primary action, cancel action, pending state, and error. Confirm the
+primary action uses the exact mutation verb; do not assume a wrapper's default
+copy is correct.
 
 Use feature-specific skills when they provide deeper setup and assertions. For
 secret CRUD, also use `testing-secrets-ui`.
@@ -147,11 +154,14 @@ For component migration:
 
 Report:
 
+- Acceptance criteria proven, failed, or left unproven
 - User workflows exercised
 - Viewports and permission states checked
+- Pointer and keyboard submission paths checked
 - Accessibility or keyboard findings
 - Intentional differences
 - Remaining blockers or untested states
 
 Do not claim the UI is ready based only on lint, type-check, or a successful
-Storybook build.
+Storybook build. Builder-side testing does not replace independent review with
+the `reviewing-frontend-ui` skill.

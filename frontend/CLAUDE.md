@@ -50,8 +50,10 @@ Read these before producing or materially changing UI:
 4. [`COMPONENT_SYSTEM_MIGRATION.md`](COMPONENT_SYSTEM_MIGRATION.md) — temporary
    v2 migration, audit, and remediation rules.
 
-Use the `designing-frontend-ui` skill for implementation and the
-`testing-frontend-ui` skill for acceptance validation.
+Use [`REVIEWING.md`](REVIEWING.md) for the independent review protocol. Use the
+`designing-frontend-ui` skill for implementation, `testing-frontend-ui` for
+builder-side acceptance validation, and `reviewing-frontend-ui` for independent
+readiness review.
 
 ### API Layer (React Query + Axios)
 

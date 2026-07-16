@@ -7,6 +7,8 @@ particular component generation.
 
 Temporary legacy-migration rules live in
 [`COMPONENT_SYSTEM_MIGRATION.md`](COMPONENT_SYSTEM_MIGRATION.md).
+Independent review process and readiness criteria live in
+[`REVIEWING.md`](REVIEWING.md).
 
 ## 1. Sources of truth
 
@@ -442,3 +444,4 @@ For new or materially changed UI:
 - `npm run lint` and `npm run type:check` pass.
 - The affected workflow is exercised in the application when Storybook cannot
   prove the behavior.
+- Independent review follows [`REVIEWING.md`](REVIEWING.md).

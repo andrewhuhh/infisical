@@ -124,4 +124,6 @@ When changing or adding a shared component:
 ## 9. Completion
 
 Run lint and type-check. Exercise the affected workflow in Storybook or the
-application. Use the `testing-frontend-ui` skill for acceptance validation.
+application. Use the `testing-frontend-ui` skill for acceptance validation and
+record the workflows, states, viewports, input methods, and evidence checked.
+Independent readiness review uses the `reviewing-frontend-ui` skill.

@@ -69,8 +69,10 @@ Read the frontend design guidance in this order:
 4. [`frontend/COMPONENT_SYSTEM_MIGRATION.md`](frontend/COMPONENT_SYSTEM_MIGRATION.md)
    — temporary rules for legacy migration and remediation.
 
-Use the `designing-frontend-ui` skill for implementation planning and the
-`testing-frontend-ui` skill for acceptance validation.
+Use [`frontend/REVIEWING.md`](frontend/REVIEWING.md) for the independent review
+protocol. Use the `designing-frontend-ui` skill for implementation planning,
+`testing-frontend-ui` for builder-side acceptance validation, and
+`reviewing-frontend-ui` for independent readiness review.
 
 ### Auth & Permissions
 
