@@ -36,8 +36,24 @@ Middleware pages in `src/pages/middlewares/`: `authenticate.tsx` (auth guard + r
 
 - **`src/pages/`** — Route-level components organized by product feature (secret-manager, cert-manager, kms, ssh, pam, organization, project, admin, auth, ai). Each has `route.tsx` + page component + local `components/`.
 - **`src/views/`** — Reusable page-level UI composed into multiple pages. Pages import views with configuration props.
-- **`src/components/v3/`** — Latest shared UI component library (preferred). Contains `generic/` (Accordion, Alert, Button, Dialog, Select, Table, etc.) and `platform/` (domain-specific components). **Always use v3 components for new code.** Only use v2 components when a v3 equivalent does not exist.
-- **`src/components/v2/`** — Legacy shared UI components built on Radix UI primitives + Tailwind. Uses `cva` (class-variance-authority) for variants and `tailwind-merge` for class conflict resolution. Being superseded by v3 — do not use for new features if a v3 alternative exists.
+- **`src/components/v3/`** — Current preferred shared UI component library. Contains `generic/` domain-neutral components and `platform/` domain-aware components. Use a ready v3 component for new work.
+- **`src/components/v2/`** — Legacy shared UI components retained during migration. Do not add new visual capabilities to v2. Follow [`COMPONENT_SYSTEM_MIGRATION.md`](COMPONENT_SYSTEM_MIGRATION.md) when the v3 target is partial or blocked.
+
+### Design Guidance
+
+Read these before producing or materially changing UI:
+
+1. [`../DESIGN.md`](../DESIGN.md) — product-design principles and content voice.
+2. [`DESIGN_ENGINEERING.md`](DESIGN_ENGINEERING.md) — frontend implementation
+   contract, component lifecycle, accessibility, and definition of done.
+3. Storybook and component source — exact supported APIs and compositions.
+4. [`COMPONENT_SYSTEM_MIGRATION.md`](COMPONENT_SYSTEM_MIGRATION.md) — temporary
+   v2 migration, audit, and remediation rules.
+
+Use [`REVIEWING.md`](REVIEWING.md) for the independent review protocol. Use the
+`designing-frontend-ui` skill for implementation, `testing-frontend-ui` for
+builder-side acceptance validation, and `reviewing-frontend-ui` for independent
+readiness review.
 
 ### API Layer (React Query + Axios)
 
@@ -72,7 +88,11 @@ CASL-based (`@casl/ability`). Contexts: `OrgPermissionContext` and `ProjectPermi
 
 ### Styling
 
-Tailwind CSS v4 with PostCSS. Dark theme configured via CSS custom properties in `src/index.css` (@theme directive). Custom breakpoint `dashboard: 1100px`. Font: Inter. Color palette: primary (blue), mineshaft (dark gray), bunker (darker bg), success/warning/danger/info.
+Tailwind CSS v4 with PostCSS. The dark theme and semantic tokens are configured
+in `src/index.css` (`@theme`). The custom `dashboard` breakpoint is 1400px.
+Inter is the product font. Prefer semantic surface, content, status, scope, and
+product tokens; legacy `mineshaft`, `bunker`, and `primary` scales remain during
+migration.
 
 ### Layouts
 
