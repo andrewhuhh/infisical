@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { faQuestionCircle } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangleIcon } from "lucide-react";
 import { z } from "zod";
 
 import { createNotification } from "@app/components/notifications";
@@ -23,22 +22,12 @@ import {
   SelectItem,
   Tooltip
 } from "@app/components/v2";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogMedia,
-  AlertDialogTitle
-} from "@app/components/v3";
 import { useProject } from "@app/context";
 import {
   CaStatus,
   useCreateCertTemplate,
   useGetCertTemplate,
+  useGetInternalCaById,
   useListWorkspaceCas,
   useListWorkspacePkiCollections,
   useUpdateCertTemplate
@@ -94,16 +83,12 @@ type Props = {
 
 export const CertificateTemplateModal = ({ popUp, handlePopUpToggle, caId }: Props) => {
   const { currentProject } = useProject();
-  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
-  const closeRequestFocusRef = useRef<HTMLElement | null>(null);
-  const initializedSessionRef = useRef<string | undefined>(undefined);
-  const shouldRestoreCloseRequestFocusRef = useRef(false);
-  const submissionInFlightRef = useRef(false);
 
-  const certificateTemplateId = (popUp?.certificateTemplate?.data as { id: string } | undefined)
-    ?.id;
+  const { data: ca } = useGetInternalCaById(caId);
 
-  const { data: certTemplate } = useGetCertTemplate(certificateTemplateId || "");
+  const { data: certTemplate } = useGetCertTemplate(
+    (popUp?.certificateTemplate?.data as { id: string })?.id || ""
+  );
 
   const { data: cas } = useListWorkspaceCas({
     projectId: currentProject?.id,
@@ -114,44 +99,25 @@ export const CertificateTemplateModal = ({ popUp, handlePopUpToggle, caId }: Pro
     projectId: currentProject?.id || ""
   });
 
-  const { mutateAsync: createCertTemplate, isPending: isCreatePending } = useCreateCertTemplate();
-  const { mutateAsync: updateCertTemplate, isPending: isUpdatePending } = useUpdateCertTemplate();
+  const { mutateAsync: createCertTemplate } = useCreateCertTemplate();
+  const { mutateAsync: updateCertTemplate } = useUpdateCertTemplate();
 
   const {
     control,
     handleSubmit,
     reset,
-    formState: { isDirty, isSubmitting }
+    formState: { isSubmitting }
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      caId,
-      collectionId: undefined,
-      name: "",
-      commonName: "",
-      subjectAlternativeName: "",
-      ttl: "",
       keyUsages: {
         [CertKeyUsage.DIGITAL_SIGNATURE]: true,
         [CertKeyUsage.KEY_ENCIPHERMENT]: true
-      },
-      extendedKeyUsages: {}
+      }
     }
   });
 
-  const isSubmitPending = isSubmitting || isCreatePending || isUpdatePending;
-
   useEffect(() => {
-    if (!popUp.certificateTemplate.isOpen) {
-      initializedSessionRef.current = undefined;
-      return;
-    }
-
-    const sessionId = certificateTemplateId || "create";
-    if (initializedSessionRef.current === sessionId || (certificateTemplateId && !certTemplate)) {
-      return;
-    }
-
     if (certTemplate) {
       reset({
         caId: certTemplate.caId,
@@ -170,7 +136,6 @@ export const CertificateTemplateModal = ({ popUp, handlePopUpToggle, caId }: Pro
         caId,
         name: "",
         commonName: "",
-        subjectAlternativeName: "",
         ttl: "",
         keyUsages: {
           [CertKeyUsage.DIGITAL_SIGNATURE]: true,
@@ -179,31 +144,7 @@ export const CertificateTemplateModal = ({ popUp, handlePopUpToggle, caId }: Pro
         extendedKeyUsages: {}
       });
     }
-
-    initializedSessionRef.current = sessionId;
-  }, [caId, certificateTemplateId, certTemplate, popUp.certificateTemplate.isOpen, reset]);
-
-  const closeWorkflow = () => {
-    shouldRestoreCloseRequestFocusRef.current = false;
-    setConfirmDiscardOpen(false);
-    reset();
-    handlePopUpToggle("certificateTemplate", false);
-  };
-
-  const requestClose = (focusTarget?: HTMLElement | null) => {
-    if (isSubmitPending) {
-      return;
-    }
-
-    if (isDirty) {
-      closeRequestFocusRef.current = focusTarget ?? (document.activeElement as HTMLElement | null);
-      shouldRestoreCloseRequestFocusRef.current = true;
-      setConfirmDiscardOpen(true);
-      return;
-    }
-
-    closeWorkflow();
-  };
+  }, [certTemplate, ca]);
 
   const onFormSubmit = async ({
     collectionId,
@@ -214,107 +155,76 @@ export const CertificateTemplateModal = ({ popUp, handlePopUpToggle, caId }: Pro
     keyUsages,
     extendedKeyUsages
   }: FormData) => {
-    if (!currentProject?.id || submissionInFlightRef.current) {
+    if (!currentProject?.id) {
       return;
     }
 
-    submissionInFlightRef.current = true;
-
-    try {
-      if (certTemplate) {
-        await updateCertTemplate({
-          id: certTemplate.id,
-          projectId: currentProject.id,
-          pkiCollectionId: collectionId,
-          caId,
-          name,
-          commonName,
-          subjectAlternativeName,
-          ttl,
-          keyUsages: Object.entries(keyUsages)
-            .filter(([, value]) => value)
-            .map(([key]) =>
-              key === CertKeyUsage.CRL_SIGN
-                ? "cRLSign"
-                : key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
-            ),
-          extendedKeyUsages: Object.entries(extendedKeyUsages)
-            .filter(([, value]) => value)
-            .map(([key]) => key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()))
-        });
-
-        createNotification({
-          text: "Successfully updated certificate template",
-          type: "success"
-        });
-      } else {
-        await createCertTemplate({
-          projectId: currentProject.id,
-          pkiCollectionId: collectionId,
-          caId,
-          name,
-          commonName,
-          subjectAlternativeName,
-          ttl,
-          keyUsages: Object.entries(keyUsages)
-            .filter(([, value]) => value)
-            .map(([key]) =>
-              key === CertKeyUsage.CRL_SIGN
-                ? "cRLSign"
-                : key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
-            ),
-          extendedKeyUsages: Object.entries(extendedKeyUsages)
-            .filter(([, value]) => value)
-            .map(([key]) => key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()))
-        });
-
-        createNotification({
-          text: "Successfully created certificate template",
-          type: "success"
-        });
-      }
-
-      closeWorkflow();
-    } catch (error) {
-      const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data
-        ?.message;
+    if (certTemplate) {
+      await updateCertTemplate({
+        id: certTemplate.id,
+        projectId: currentProject.id,
+        pkiCollectionId: collectionId,
+        caId,
+        name,
+        commonName,
+        subjectAlternativeName,
+        ttl,
+        keyUsages: Object.entries(keyUsages)
+          .filter(([, value]) => value)
+          .map(([key]) =>
+            key === CertKeyUsage.CRL_SIGN
+              ? "cRLSign"
+              : key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+          ),
+        extendedKeyUsages: Object.entries(extendedKeyUsages)
+          .filter(([, value]) => value)
+          .map(([key]) => key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()))
+      });
 
       createNotification({
-        text:
-          errorMessage ||
-          (error instanceof Error
-            ? error.message
-            : `Failed to ${certTemplate ? "update" : "create"} certificate template`),
-        type: "error"
+        text: "Successfully updated certificate template",
+        type: "success"
       });
-    } finally {
-      submissionInFlightRef.current = false;
+    } else {
+      await createCertTemplate({
+        projectId: currentProject.id,
+        pkiCollectionId: collectionId,
+        caId,
+        name,
+        commonName,
+        subjectAlternativeName,
+        ttl,
+        keyUsages: Object.entries(keyUsages)
+          .filter(([, value]) => value)
+          .map(([key]) =>
+            key === CertKeyUsage.CRL_SIGN
+              ? "cRLSign"
+              : key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+          ),
+        extendedKeyUsages: Object.entries(extendedKeyUsages)
+          .filter(([, value]) => value)
+          .map(([key]) => key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()))
+      });
+
+      createNotification({
+        text: "Successfully created certificate template",
+        type: "success"
+      });
     }
+
+    reset();
+    handlePopUpToggle("certificateTemplate", false);
   };
 
-  return [
+  return (
     <Modal
-      key="certificate-template-modal"
       isOpen={popUp?.certificateTemplate?.isOpen}
       onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          requestClose();
-        }
+        handlePopUpToggle("certificateTemplate", isOpen);
+        reset();
       }}
     >
-      <ModalContent
-        title={certTemplate ? "Certificate Template" : "Create Certificate Template"}
-        showCloseButton={!isSubmitPending}
-        onEscapeKeyDown={(event) => {
-          event.preventDefault();
-          requestClose();
-        }}
-        onPointerDownOutside={(event) => {
-          event.preventDefault();
-          const focusTarget = document.activeElement as HTMLElement | null;
-          window.requestAnimationFrame(() => requestClose(focusTarget));
-        }}
-      >
+      <ModalContent title={certTemplate ? "Certificate Template" : "Create Certificate Template"}>
         <form onSubmit={handleSubmit(onFormSubmit)}>
           {certTemplate && (
             <FormControl label="Certificate Template ID">
@@ -553,55 +463,21 @@ export const CertificateTemplateModal = ({ popUp, handlePopUpToggle, caId }: Pro
               className="mr-4"
               size="sm"
               type="submit"
-              isLoading={isSubmitPending}
-              isDisabled={isSubmitPending}
+              isLoading={isSubmitting}
+              isDisabled={isSubmitting}
             >
               Save
             </Button>
             <Button
-              type="button"
               colorSchema="secondary"
               variant="plain"
-              isDisabled={isSubmitPending}
-              onClick={() => requestClose()}
+              onClick={() => handlePopUpToggle("certificateTemplate", false)}
             >
               Cancel
             </Button>
           </div>
         </form>
       </ModalContent>
-    </Modal>,
-
-    <AlertDialog
-      key="certificate-template-discard-dialog"
-      open={confirmDiscardOpen}
-      onOpenChange={setConfirmDiscardOpen}
-    >
-      <AlertDialogContent
-        onCloseAutoFocus={(event) => {
-          if (shouldRestoreCloseRequestFocusRef.current) {
-            event.preventDefault();
-            closeRequestFocusRef.current?.focus();
-            shouldRestoreCloseRequestFocusRef.current = false;
-          }
-        }}
-      >
-        <AlertDialogHeader>
-          <AlertDialogMedia>
-            <AlertTriangleIcon />
-          </AlertDialogMedia>
-          <AlertDialogTitle>Discard changes?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Your unsaved certificate template changes will be permanently lost.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep editing</AlertDialogCancel>
-          <AlertDialogAction type="button" variant="danger" onClick={closeWorkflow}>
-            Discard changes
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  ];
+    </Modal>
+  );
 };
