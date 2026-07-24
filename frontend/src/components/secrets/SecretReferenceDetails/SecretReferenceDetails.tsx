@@ -40,10 +40,6 @@ type Props = {
   secretKey: string;
 };
 
-const INTERPOLATION_SYNTAX_REG = /\${([^}]+)}/;
-export const hasSecretReference = (value: string | undefined) =>
-  value ? INTERPOLATION_SYNTAX_REG.test(value) : false;
-
 type TreeNodeData = {
   title: string;
   value?: string;

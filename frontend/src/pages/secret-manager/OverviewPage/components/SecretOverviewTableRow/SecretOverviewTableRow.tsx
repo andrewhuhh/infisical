@@ -96,6 +96,8 @@ export const SecretOverviewTableRow = ({
   const [isSecretVisible, setIsSecretVisible] = useToggle();
 
   const { permission } = useProjectPermission();
+  const getIsOverrideByEnvironment = (env: string) =>
+    Boolean(getSecretByKey(env, secretKey)?.idOverride);
 
   const getDefaultValue = (
     secret: SecretV3RawSanitized | undefined,
@@ -287,6 +289,7 @@ export const SecretOverviewTableRow = ({
                               defaultValue={getDefaultValue(secret, importedSecret)}
                               secretId={secret?.id}
                               isOverride={Boolean(secret?.idOverride)}
+                              getIsOverrideByEnvironment={getIsOverrideByEnvironment}
                               isImportedSecret={isImportedSecret}
                               importedSecret={importedSecret}
                               isCreatable={isCreatable}

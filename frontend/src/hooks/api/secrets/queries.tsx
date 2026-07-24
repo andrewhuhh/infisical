@@ -345,9 +345,13 @@ const fetchSecretReferenceTree = async ({
   return data;
 };
 
-export const useGetSecretReferenceTree = (dto: TGetSecretReferenceTreeDTO) =>
+export const useGetSecretReferenceTree = (
+  dto: TGetSecretReferenceTreeDTO,
+  options?: { enabled?: boolean }
+) =>
   useQuery({
     enabled:
+      (options?.enabled ?? true) &&
       Boolean(dto.environmentSlug) &&
       Boolean(dto.secretPath) &&
       Boolean(dto.projectId) &&

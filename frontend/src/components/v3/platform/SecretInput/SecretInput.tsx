@@ -123,6 +123,7 @@ type Props = TextareaHTMLAttributes<HTMLTextAreaElement> & {
 
 const commonClassName =
   "text-sm leading-[1.45rem] caret-white border-none outline-hidden w-full break-all";
+const textLayerClassName = "px-3 pt-[6px] pb-[4px]";
 
 export const SecretInput = forwardRef<HTMLTextAreaElement, Props>(
   (
@@ -189,7 +190,7 @@ export const SecretInput = forwardRef<HTMLTextAreaElement, Props>(
         )}
         style={{ maxHeight: `${21 * 7}px` }}
       >
-        <div className="relative overflow-hidden px-3 pt-[6px] pb-[4px]">
+        <div className={cn("relative overflow-hidden", textLayerClassName)}>
           <div
             aria-hidden
             className={cn(
@@ -219,7 +220,8 @@ export const SecretInput = forwardRef<HTMLTextAreaElement, Props>(
             aria-label="secret value"
             ref={ref}
             className={cn(
-              "no-scrollbar absolute inset-0 block h-full resize-none overflow-hidden bg-transparent px-3 py-1 text-transparent focus:border-0",
+              "no-scrollbar absolute inset-0 block h-full resize-none overflow-hidden bg-transparent text-transparent focus:border-0",
+              textLayerClassName,
               commonClassName
             )}
             onFocus={(evt) => {

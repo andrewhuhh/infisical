@@ -2439,7 +2439,7 @@ const OverviewPageContent = () => {
           referencedSecretKey: string;
           referencedSecretEnv: string;
         }[] = [];
-        const secretIds = new Set<string>();
+        const secretReferenceIds = new Set<string>();
 
         allSecrets
           .filter(
@@ -2449,8 +2449,10 @@ const OverviewPageContent = () => {
               secretsToDeleteKeys.includes(secret.referencedSecretKey)
           )
           .forEach((secret) => {
-            if (!secretIds.has(secret.secretId)) {
-              secretIds.add(secret.secretId);
+            const referenceId = `${secret.secretId}:${secret.referencedSecretEnv}:${secret.referencedSecretKey}`;
+
+            if (!secretReferenceIds.has(referenceId)) {
+              secretReferenceIds.add(referenceId);
               uniqueSecrets.push(secret);
             }
           });
